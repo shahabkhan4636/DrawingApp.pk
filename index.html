@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrawingApp.pk — Free Online Drawing</title>
+<meta name="description" content="Free online drawing app by Shahab Khan. Colors, brush sizes, eraser & download as PNG.">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',system-ui,sans-serif; }
+  body { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+         background:linear-gradient(135deg,#0D1117,#161B22 60%,#0D1117); color:#E6EDF3; padding:20px; }
+  h1 { font-size:1.6rem; margin-bottom:4px; }
+  h1 span { color:#F778BA; }
+  .tagline { color:#8B949E; font-size:.9rem; margin-bottom:16px; }
+  .toolbar { display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center;
+             background:#161B22; border:1px solid #30363D; border-radius:14px; padding:12px 16px;
+             margin-bottom:14px; width:min(640px,94vw); }
+  .colors { display:flex; gap:6px; flex-wrap:wrap; }
+  .swatch { width:28px; height:28px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:.15s; }
+  .swatch.active { border-color:#fff; transform:scale(1.15); }
+  .size-group { display:flex; gap:6px; align-items:center; }
+  .size-btn { width:34px; height:34px; border-radius:8px; background:#21262D; border:1px solid #30363D;
+              color:#E6EDF3; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .size-btn.active { background:#1F6FEB; border-color:#1F6FEB; }
+  .size-btn .dot { background:#E6EDF3; border-radius:50%; }
+  .tool-btn { background:#21262D; border:1px solid #30363D; color:#E6EDF3; border-radius:8px;
+              padding:8px 14px; cursor:pointer; font-size:.9rem; }
+  .tool-btn.active { background:#1F6FEB; border-color:#1F6FEB; }
+  .tool-btn:hover { background:#30363D; }
+  .tool-btn.active:hover { background:#388BFD; }
+  .canvas-wrap { background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.5); }
+  canvas { display:block; width:min(640px,94vw); height:420px; cursor:crosshair; touch-action:none; }
+  footer { margin-top:16px; color:#8B949E; font-size:.85rem; text-align:center; }
+  footer a { color:#00BFFF; text-decoration:none; }
+</style>
+</head>
+<body>
+  <h1>🖌️ Drawing<span>App</span>.pk</h1>
+  <p class="tagline">Draw anything — then download your art as PNG!</p>
+
+  <div class="toolbar">
+    <div class="colors" id="colors"></div>
+    <div class="size-group" id="sizes"></div>
+    <button class="tool-btn" id="eraserBtn">🧽 Eraser</button>
+    <button class="tool-btn" id="clearBtn">🗑️ Clear</button>
+    <button class="tool-btn" id="saveBtn">💾 Save PNG</button>
+  </div>
+
+  <div class="canvas-wrap"><canvas id="canvas" width="640" height="420"></canvas></div>
+
+  <footer>Built with ❤️ by <a href="https://github.com/shahabkhan4636" target="_blank">Shahab Khan</a> · <a href="https://github.com/shahabkhan4636/DrawingApp.pk" target="_blank">View on GitHub</a></footer>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+let color = '#000000', size = 5, erasing = false, drawing = false, last = null;
+
+const COLOR_LIST = ['#000000','#E63946','#F2CC60','#3FB950','#00BFFF','#A371F7','#F778BA','#FF7B72','#FFFFFF'];
+const colorsEl = document.getElementById('colors');
+COLOR_LIST.forEach(c=>{
+  const s = document.createElement('div');
+  s.className = 'swatch' + (c===color?' active':'');
+  s.style.background = c;
+  s.onclick = ()=>{ color=c; erasing=false; document.getElementById('eraserBtn').classList.remove('active');
+    colorsEl.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active')); s.classList.add('active'); };
+  colorsEl.appendChild(s);
+});
+
+const SIZES = [2,5,10,20];
+const sizesEl = document.getElementById('sizes');
+SIZES.forEach(sz=>{
+  const b = document.createElement('button');
+  b.className = 'size-btn' + (sz===size?' active':'');
+  b.innerHTML = `<span class="dot" style="width:${sz}px;height:${sz}px"></span>`;
+  b.onclick = ()=>{ size=sz; sizesEl.querySelectorAll('.size-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); };
+  sizesEl.appendChild(b);
+});
+
+document.getElementById('eraserBtn').onclick = function(){
+  erasing = !erasing;
+  this.classList.toggle('active', erasing);
+};
+document.getElementById('clearBtn').onclick = ()=>{
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+};
+document.getElementById('saveBtn').onclick = ()=>{
+  const a = document.createElement('a');
+  a.download = 'my-drawing.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+};
+
+function pos(e){
+  const r = canvas.getBoundingClientRect();
+  const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+  const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+  return { x: x * canvas.width / r.width, y: y * canvas.height / r.height };
+}
+function startDraw(e){ drawing=true; last=pos(e); e.preventDefault(); }
+function moveDraw(e){
+  if(!drawing) return;
+  const p = pos(e);
+  ctx.strokeStyle = erasing ? '#ffffff' : color;
+  ctx.lineWidth = erasing ? size*2 : size;
+  ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+  last = p; e.preventDefault();
+}
+function stopDraw(){ drawing=false; }
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', moveDraw);
+canvas.addEventListener('mouseup', stopDraw);
+canvas.addEventListener('mouseleave', stopDraw);
+canvas.addEventListener('touchstart', startDraw, {passive:false});
+canvas.addEventListener('touchmove', moveDraw, {passive:false});
+canvas.addEventListener('touchend', stopDraw);
+</script>
+</body>
+</html>
